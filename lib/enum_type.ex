@@ -36,18 +36,17 @@ defmodule EnumType do
     end
   end
 
+  # Extracts the value definitions from the defenum block
+  # A do block with only one expression is not wrapped in a {:__block__, ..} AST node
+  defp extract_values({:__block__, _, block_body}, acc),
+    do: Enum.reduce(block_body, acc, &extract_values/2)
+
+  defp extract_values({:value, _, [{_, _, [sym]} | _]}, acc), do: [sym | acc]
+  defp extract_values(_, acc), do: acc
+
   defmacro defenum(name, ecto_type, do: block) do
-    {:__block__, _, block_body} = block
-
-    values =
-      Enum.reduce(block_body, [], fn
-        {:value, _, [{_, _, [sym]} | _]}, acc -> [sym | acc]
-        _, acc -> acc
-      end)
-
+    values = extract_values(block, [])
     type_pipe = build_type_pipe(name, values)
-
-    # type_pipe_string = Macro.to_string(type_pipe, __ENV__)
 
     syn =
       quote generated: true, location: :keep do
